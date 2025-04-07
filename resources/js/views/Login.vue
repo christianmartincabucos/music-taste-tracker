@@ -45,55 +45,41 @@
   </div>
 </template>
 
-<script lang="ts">
+<script lang="ts" setup>
 import { defineComponent, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 
-export default defineComponent({
-  name: 'Login',
-  setup() {
-    const authStore = useAuthStore();
-    const router = useRouter();
+  const authStore = useAuthStore();
+  const router = useRouter();
+  
+  const email = ref('');
+  const password = ref('');
+  const loading = ref(false);
+  const errors = ref<Record<string, string[]>>({});
+  const loginError = ref('');
+  
+  const handleSubmit = async () => {
+    loading.value = true;
+    errors.value = {};
+    loginError.value = '';
     
-    const email = ref('');
-    const password = ref('');
-    const loading = ref(false);
-    const errors = ref<Record<string, string[]>>({});
-    const loginError = ref('');
-    
-    const handleSubmit = async () => {
-      loading.value = true;
-      errors.value = {};
-      loginError.value = '';
-      
-      try {
-        await authStore.login(email.value, password.value);
-        window.location.href = '/albums';
-      } catch (error: any) {
-        if (error.response?.status === 422) {
-          errors.value = error.response.data.errors;
-        } else if (error.response?.status === 401) {
-          loginError.value = 'Invalid email or password';
-        } else {
-          loginError.value = 'An error occurred during login';
-          console.error('Login error:', error);
-        }
-      } finally {
-        loading.value = false;
+    try {
+      await authStore.login(email.value, password.value);
+      window.location.href = '/albums';
+    } catch (error: any) {
+      if (error.response?.status === 422) {
+        errors.value = error.response.data.errors;
+      } else if (error.response?.status === 401) {
+        loginError.value = 'Invalid email or password';
+      } else {
+        loginError.value = 'An error occurred during login';
+        console.error('Login error:', error);
       }
-    };
-    
-    return {
-      email,
-      password,
-      loading,
-      errors,
-      loginError,
-      handleSubmit
-    };
-  }
-});
+    } finally {
+      loading.value = false;
+    }
+  };
 </script>
 
 <style lang="scss" scoped>

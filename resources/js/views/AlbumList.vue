@@ -1,6 +1,10 @@
 <template>
   <div class="album-container">
     <div class="album-header">
+      <div v-if="errorMessage" class="error-alert">
+        {{ errorMessage }}
+        <button @click="dismissError" class="dismiss-btn">×</button>
+      </div>
       <h1>Music Albums</h1>
       <div class="search-container">
         <input 
@@ -99,96 +103,79 @@
   </div>
 </template>
 
-<script lang="ts">
+<script lang="ts" setup>
 import { defineComponent, ref, computed, onMounted, watch } from 'vue';
 import { useAlbumStore } from '../stores/album';
 import { useAuthStore } from '../stores/auth';
 import debounce from 'lodash/debounce';
 
-export default defineComponent({
-  name: 'AlbumList',
-  setup() {
-    const albumStore = useAlbumStore();
-    const authStore = useAuthStore();
-    
-    const searchQuery = ref('');
-    const showDeleteModal = ref(false);
-    const albumToDelete = ref<number | null>(null);
-    
-    // Computed properties
-    const albums = computed(() => albumStore.albums);
-    const loading = computed(() => albumStore.loading);
-    const currentPage = computed(() => albumStore.currentPage);
-    const lastPage = computed(() => albumStore.lastPage);
-    const isAdmin = computed(() => authStore.isAdmin);
-    
-    // Methods
-    const fetchAlbums = () => {
-      albumStore.fetchAlbums(currentPage.value, searchQuery.value);
-    };
-    
-    const handleSearch = debounce(() => {
-      albumStore.setSearchQuery(searchQuery.value);
-    }, 300);
-    
-    const changePage = (page: number) => {
-      if (page >= 1 && page <= lastPage.value) {
-        albumStore.fetchAlbums(page, searchQuery.value);
-      }
-    };
-    
-    const voteOnAlbum = async (albumId: number, vote: number) => {
+  const albumStore = useAlbumStore();
+  const authStore = useAuthStore();
+  
+  const searchQuery = ref('');
+  const showDeleteModal = ref(false);
+  const albumToDelete = ref<number | null>(null);
+
+  const errorMessage = ref('');
+
+  // Computed properties
+  const albums = computed(() => albumStore.albums);
+  const loading = computed(() => albumStore.loading);
+  const currentPage = computed(() => albumStore.currentPage);
+  const lastPage = computed(() => albumStore.lastPage);
+  const isAdmin = computed(() => authStore.isAdmin);
+  
+  const dismissError = () => {
+    errorMessage.value = '';
+  };
+  const fetchAlbums = () => {
+    albumStore.fetchAlbums(currentPage.value, searchQuery.value);
+  };
+  
+  const handleSearch = debounce(() => {
+    albumStore.setSearchQuery(searchQuery.value);
+  }, 300);
+  
+  const changePage = (page: number) => {
+    if (page >= 1 && page <= lastPage.value) {
+      albumStore.fetchAlbums(page, searchQuery.value);
+    }
+  };
+  
+  const voteOnAlbum = async (albumId: number, vote: number) => {
+    try {
+      await albumStore.voteOnAlbum(albumId, vote);
+    } catch (error) {
+      console.error('Error voting on album:', error);
+    }
+  };
+  
+  const confirmDelete = (albumId: number) => {
+    albumToDelete.value = albumId;
+    showDeleteModal.value = true;
+  };
+  
+  const cancelDelete = () => {
+    albumToDelete.value = null;
+    showDeleteModal.value = false;
+  };
+  
+  const deleteAlbum = async () => {
+    if (albumToDelete.value) {
       try {
-        await albumStore.voteOnAlbum(albumId, vote);
+        await albumStore.deleteAlbum(albumToDelete.value);
+        showDeleteModal.value = false;
+        albumToDelete.value = null;
       } catch (error) {
-        console.error('Error voting on album:', error);
+        console.error('Error deleting album:', error);
       }
-    };
-    
-    const confirmDelete = (albumId: number) => {
-      albumToDelete.value = albumId;
-      showDeleteModal.value = true;
-    };
-    
-    const cancelDelete = () => {
-      albumToDelete.value = null;
-      showDeleteModal.value = false;
-    };
-    
-    const deleteAlbum = async () => {
-      if (albumToDelete.value) {
-        try {
-          await albumStore.deleteAlbum(albumToDelete.value);
-          showDeleteModal.value = false;
-          albumToDelete.value = null;
-        } catch (error) {
-          console.error('Error deleting album:', error);
-        }
-      }
-    };
-    
-    // Lifecycle hooks
-    onMounted(() => {
-      fetchAlbums();
-    });
-    
-    return {
-      albums,
-      loading,
-      currentPage,
-      lastPage,
-      searchQuery,
-      isAdmin,
-      showDeleteModal,
-      handleSearch,
-      changePage,
-      voteOnAlbum,
-      confirmDelete,
-      cancelDelete,
-      deleteAlbum
-    };
-  }
-});
+    }
+  };
+  
+  // Lifecycle hooks
+  onMounted(() => {
+    fetchAlbums();
+  });
 </script>
 
 <style lang="scss" scoped>

@@ -77,13 +77,12 @@ export const useAlbumStore = defineStore("album", {
     async voteOnAlbum(albumId: number, vote: number) {
       try {
         const response = await axios.post(`/api/albums/${albumId}/vote`, { vote })
-
-        // Update the album in the store
+    
         const index = this.albums.findIndex((album) => album.id === albumId)
-        if (index !== -1) {
-          this.albums[index] = response.data
+        if (index !== -1 && response.data && response.data.data) {
+          this.albums[index] = response.data.data
         }
-
+    
         return response.data
       } catch (error: any) {
         this.error = error.response?.data?.message || "Failed to vote on album"

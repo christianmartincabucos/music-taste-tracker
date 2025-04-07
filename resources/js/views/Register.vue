@@ -65,59 +65,45 @@
   </div>
 </template>
 
-<script lang="ts">
+<script lang="ts" setup>
 import { defineComponent, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 
-export default defineComponent({
-  name: 'Register',
-  setup() {
-    const authStore = useAuthStore();
-    const router = useRouter();
+  const authStore = useAuthStore();
+  const router = useRouter();
+  
+  const name = ref('');
+  const email = ref('');
+  const password = ref('');
+  const passwordConfirmation = ref('');
+  const loading = ref(false);
+  const errors = ref<Record<string, string[]>>({});
+  
+  const handleSubmit = async () => {
+    loading.value = true;
+    errors.value = {};
     
-    const name = ref('');
-    const email = ref('');
-    const password = ref('');
-    const passwordConfirmation = ref('');
-    const loading = ref(false);
-    const errors = ref<Record<string, string[]>>({});
-    
-    const handleSubmit = async () => {
-      loading.value = true;
-      errors.value = {};
+    try {
+      await authStore.register(
+        name.value,
+        email.value,
+        password.value,
+        passwordConfirmation.value
+      );
       
-      try {
-        await authStore.register(
-          name.value,
-          email.value,
-          password.value,
-          passwordConfirmation.value
-        );
-        
-        router.push('/albums');
-      } catch (error: any) {
-        if (error.response?.status === 422) {
-          errors.value = error.response.data.errors;
-        } else {
-          console.error('Registration error:', error);
-        }
-      } finally {
-        loading.value = false;
+      router.push('/albums');
+    } catch (error: any) {
+      if (error.response?.status === 422) {
+        errors.value = error.response.data.errors;
+      } else {
+        console.error('Registration error:', error);
       }
-    };
-    
-    return {
-      name,
-      email,
-      password,
-      passwordConfirmation,
-      loading,
-      errors,
-      handleSubmit
-    };
-  }
-});
+    } finally {
+      loading.value = false;
+    }
+  };
+  
 </script>
 
 <style lang="scss" scoped>
