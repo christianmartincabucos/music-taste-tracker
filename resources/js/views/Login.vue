@@ -69,7 +69,7 @@ export default defineComponent({
       
       try {
         await authStore.login(email.value, password.value);
-        router.push('/albums');
+        window.location.href = '/albums';
       } catch (error: any) {
         if (error.response?.status === 422) {
           errors.value = error.response.data.errors;

@@ -2,61 +2,98 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
+use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Requests\Auth\RegisterRequest;
+use App\Http\Resources\UserResource;
+use App\Services\Interfaces\AuthServiceInterface;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    public function register(Request $request)
+    protected $authService;
+    
+    /**
+     * Create a new AuthController instance.
+     */
+    public function __construct(AuthServiceInterface $authService)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
-        ]);
-
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
-
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        return response()->json([
-            'user' => $user,
-            'token' => $token
-        ]);
+        $this->middleware('auth:sanctum')->only(['logout', 'user']);
+        $this->middleware('guest')->only(['login', 'register']);
+        $this->authService = $authService;
     }
 
-    public function login(Request $request)
+    /**
+     * Register a new user.
+     *
+     * @param RegisterRequest $request
+     * @return JsonResponse
+     */
+    public function register(RegisterRequest $request): JsonResponse
     {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-        ]);
+        $result = $this->authService->register($request->validated());
 
-        if (!Auth::attempt($request->only('email', 'password'))) {
-            throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
+        return response()->json([
+            'data' => new UserResource($result['user']),
+            'meta' => [
+                'token' => $result['token'],
+                'token_type' => 'Bearer',
+            ]
+        ], 201);
+    }
+
+    /**
+     * Log in an existing user.
+     *
+     * @param LoginRequest $request
+     * @return JsonResponse
+     * @throws ValidationException
+     */
+    public function login(LoginRequest $request): JsonResponse
+    {
+        try {
+            $result = $this->authService->login($request->validated());
+            
+            return response()->json([
+                'data' => new UserResource($result['user']),
+                'meta' => [
+                    'token' => $result['token'],
+                    'token_type' => 'Bearer',
+                ]
             ]);
+        } catch (ValidationException $e) {
+            throw $e;
         }
+    }
 
-        $user = User::where('email', $request->email)->firstOrFail();
-        $token = $user->createToken('auth_token')->plainTextToken;
-
+    /**
+     * Log out the authenticated user.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function logout(Request $request): JsonResponse
+    {
+        $this->authService->logout($request->user());
+        
         return response()->json([
-            'user' => $user,
-            'token' => $token
+            'message' => 'Successfully logged out'
         ]);
     }
 
-    public function logout(Request $request)
+    /**
+     * Get the authenticated User.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function user(Request $request): JsonResponse
     {
-        $request->user()->currentAccessToken()->delete();
-        return response()->json(['message' => 'Logged out successfully']);
+        $user = $this->authService->getAuthenticatedUser($request->user());
+        
+        return response()->json([
+            'data' => new UserResource($user)
+        ]);
     }
 }
