@@ -1,0 +1,55 @@
+version: '3'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: music-app
+    restart: unless-stopped
+    volumes:
+      - ./:/var/www
+      - ./vendor:/var/www/vendor
+      - ./node_modules:/var/www/node_modules
+      - ./storage:/var/www/storage
+    depends_on:
+      - db
+    networks:
+      - music-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: music-nginx
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    volumes:
+      - ./:/var/www
+      - ./docker/nginx:/etc/nginx/conf.d
+    networks:
+      - music-network
+    depends_on:
+      - app
+
+  db:
+    image: mysql:8.0
+    container_name: music-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: music_taste_tracker
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_PASSWORD: root
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    volumes:
+      - music-data:/var/lib/mysql
+    networks:
+      - music-network
+
+networks:
+  music-network:
+    driver: bridge
+
+volumes:
+  music-data:
+    driver: local
